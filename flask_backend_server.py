@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string, send_from_directory
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import asyncio
 import aiohttp
@@ -17,7 +17,6 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IP Reputation Lookup Tool</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -210,7 +209,7 @@ HTML_TEMPLATE = '''
             color: white;
         }
 
-        .risk-clean {
+        .risk-clean { /* Added clean for clarity */
             background: linear-gradient(45deg, #28a745, #27ae60) !important;
             color: white;
         }
@@ -280,7 +279,7 @@ HTML_TEMPLATE = '''
         <div class="input-section">
             <div class="form-group">
                 <label for="ipList">IP Addresses (one per line)</label>
-                <textarea id="ipList" placeholder="192.168.1.1\n10.0.0.1\n8.8.8.8">8.8.8.8
+                <textarea id="ipList" placeholder="192.168.1.1&#10;10.0.0.1&#10;8.8.8.8">8.8.8.8
 1.1.1.1
 208.67.222.222
 91.196.152.50</textarea>
@@ -298,7 +297,9 @@ HTML_TEMPLATE = '''
             </div>
 
             <div style="text-align: center; margin-top: 20px;">
-                <button class="btn" onclick="analyzeIPs()">🔍 Analyze IPs</button>
+                <button class="btn" onclick="analyzeIPs()">
+                    🔍 Analyze IPs
+                </button>
             </div>
         </div>
 
@@ -344,7 +345,7 @@ HTML_TEMPLATE = '''
             "AM": "Armenia", "AW": "Aruba", "AU": "Australia", "AT": "Austria", "AZ": "Azerbaijan",
             "BS": "Bahamas", "BH": "Bahrain", "BD": "Bangladesh", "BB": "Barbados", "BY": "Belarus",
             "BE": "Belgium", "BZ": "Belize", "BJ": "Benin", "BM": "Bermuda", "BT": "Bhutan",
-            "BO": "Bolivia", "BA": "Bosnia and Herzegovina", "BW": "Botswana", "BR": "Brazil",
+            "BO": "Bolivia", "BA": "Bosnia and Herzegovina", "BW": "Botswana", "BV": "Bouvet Island", "BR": "Brazil",
             "IO": "British Indian Ocean Territory", "BN": "Brunei Darussalam", "BG": "Bulgaria", "BF": "Burkina Faso", "BI": "Burundi",
             "KH": "Cambodia", "CM": "Cameroon", "CA": "Canada", "CV": "Cape Verde", "KY": "Cayman Islands",
             "CF": "Central African Republic", "TD": "Chad", "CL": "Chile", "CN": "China", "CX": "Christmas Island",
@@ -386,8 +387,9 @@ HTML_TEMPLATE = '''
             "UG": "Uganda", "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States",
             "UM": "United States Minor Outlying Islands", "UY": "Uruguay", "UZ": "Uzbekistan", "VU": "Vanuatu", "VE": "Venezuela",
             "VN": "Viet Nam", "VG": "Virgin Islands, British", "VI": "Virgin Islands, U.S.", "WF": "Wallis and Futuna", "EH": "Western Sahara",
-            "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo" # Kosovo is often included, though not universally recognized ISO 3166
+            "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe"
         };
+
 
         function showMessage(message, type = 'error') {
             const existingMsg = document.querySelector('.error-message, .success-message');
@@ -419,38 +421,29 @@ HTML_TEMPLATE = '''
         }
 
         async function analyzeIPs() {
-            console.log("Analyze IPs button clicked!");
             const ipListText = document.getElementById('ipList').value.trim();
             const vtApi = document.getElementById('vtApi').value.trim();
             const aipdbApi = document.getElementById('aipdbApi').value.trim();
 
-            console.log("IPs raw text:", ipListText);
-            console.log("VT API Key (first 5 chars):", vtApi.substring(0, 5));
-            console.log("AIPDB API Key (first 5 chars):", aipdbApi.substring(0, 5));
-
             if (!ipListText) {
                 showMessage('Please enter IP addresses to analyze');
-                console.error("Error: No IP addresses provided.");
                 return;
             }
 
             if (!vtApi || !aipdbApi) {
                 showMessage('Please enter both API keys');
-                console.error("Error: Both API keys are required.");
                 return;
             }
 
-            // Corrected: Uses '\n' for splitting text area content
-            const ips = ipListText.split('\n') 
+            const ips = ipListText.split('\\n')
                 .map(ip => ip.trim())
                 .filter(ip => ip.length > 0);
 
-            console.log("Parsed IPs:", ips);
-
+            // Show loading
             document.querySelector('.loading').style.display = 'block';
             document.querySelector('.results-section').style.display = 'none';
-            document.querySelector('#progressText').textContent = 'Sending request to server...';
-
+            document.getElementById('progressText').textContent = 'Sending request to server...';
+            
             try {
                 const response = await fetch('/analyze', {
                     method: 'POST',
@@ -465,12 +458,11 @@ HTML_TEMPLATE = '''
                 });
 
                 if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`Server error: ${response.status} - ${errorBody}`);
+                    throw new Error(`Server error: ${response.status}`);
                 }
 
                 const data = await response.json();
-                console.log("Server response:", data);
+                
                 if (data.error) {
                     throw new Error(data.error);
                 }
@@ -479,10 +471,11 @@ HTML_TEMPLATE = '''
                 displayResults();
                 
             } catch (error) {
-                console.error('Error during analysis:', error);
+                console.error('Error:', error);
                 showMessage(`Error: ${error.message}`);
             }
 
+            // Hide loading
             document.querySelector('.loading').style.display = 'none';
         }
 
@@ -499,8 +492,7 @@ HTML_TEMPLATE = '''
                     <td>${result.vtMalicious === -1 ? 'Error' : result.vtMalicious}</td>
                     <td>${result.abuseScore === -1 ? 'Error' : result.abuseScore}%</td>
                     <td>${result.isp}</td>
-                    <td>${getFullCountryName(result.country)}</td>
-                    <td>${getRiskText(result.riskLevel)}</td>
+                    <td>${getFullCountryName(result.country)}</td> <td>${getRiskText(result.riskLevel)}</td>
                 `;
                 
                 tbody.appendChild(row);
@@ -524,10 +516,10 @@ HTML_TEMPLATE = '''
                     row.vtMalicious,
                     row.abuseScore,
                     `"${row.isp}"`,
-                    `"${getFullCountryName(row.country)}"`,
+                    `"${getFullCountryName(row.country)}"`, // Updated for full country name
                     getRiskText(row.riskLevel)
                 ].join(','))
-            ].join('\n');
+            ].join('\\n');
 
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
@@ -549,7 +541,7 @@ HTML_TEMPLATE = '''
                 'VT Malicious': row.vtMalicious,
                 'AbuseIPDB Score': row.abuseScore,
                 'ISP': row.isp,
-                'Country': getFullCountryName(row.country),
+                'Country': getFullCountryName(row.country), // Updated for full country name
                 'Risk Level': getRiskText(row.riskLevel)
             })));
 
@@ -563,60 +555,63 @@ HTML_TEMPLATE = '''
 '''
 
 # Simple country code to full name mapping
+# This can be expanded or loaded from a more comprehensive source if needed
 COUNTRY_CODE_TO_NAME = {
     "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AS": "American Samoa", "AD": "Andorra",
     "AO": "Angola", "AI": "Anguilla", "AQ": "Antarctica", "AG": "Antigua and Barbuda", "AR": "Argentina",
     "AM": "Armenia", "AW": "Aruba", "AU": "Australia", "AT": "Austria", "AZ": "Azerbaijan",
     "BS": "Bahamas", "BH": "Bahrain", "BD": "Bangladesh", "BB": "Barbados", "BY": "Belarus",
     "BE": "Belgium", "BZ": "Belize", "BJ": "Benin", "BM": "Bermuda", "BT": "Bhutan",
-    "BO": "Bolivia", "BA": "Bosnia and Herzegovina", "BW": "Botswana", "BR": "Brazil",
-    "IO": "British Indian Ocean Territory", "BN": "Brunei Darussalam", "BG": "Bulgaria", "BF": "Burkina Faso", "BI": "Burundi",
-    "KH": "Cambodia", "CM": "Cameroon", "CA": "Canada", "CV": "Cape Verde", "KY": "Cayman Islands",
-    "CF": "Central African Republic", "TD": "Chad", "CL": "Chile", "CN": "China", "CX": "Christmas Island",
-    "CC": "Cocos (Keeling) Islands", "CO": "Colombia", "KM": "Comoros", "CG": "Congo", "CD": "Congo, The Democratic Republic of the",
-    "CK": "Cook Islands", "CR": "Costa Rica", "CI": "Cote D'Ivoire", "HR": "Croatia", "CU": "Cuba",
-    "CY": "Cyprus", "CZ": "Czech Republic", "DK": "Denmark", "DJ": "Djibouti", "DM": "Dominica",
-    "DO": "Dominican Republic", "EC": "Ecuador", "EG": "Egypt", "SV": "El Salvador", "GQ": "Equatorial Guinea",
-    "ER": "Eritrea", "EE": "Estonia", "ET": "Ethiopia", "FK": "Falkland Islands (Malvinas)", "FO": "Faroe Islands",
-    "FJ": "Fiji", "FI": "Finland", "FR": "France", "GF": "French Guiana", "PF": "French Polynesia",
-    "TF": "French Southern Territories", "GA": "Gabon", "GM": "Gambia", "GE": "Georgia", "DE": "Germany",
-    "GH": "Ghana", "GI": "Gibraltar", "GR": "Greece", "GL": "Greenland", "GD": "Grenada",
-    "GP": "Guadeloupe", "GU": "Guam", "GT": "Guatemala", "GN": "Guinea", "GW": "Guinea-Bissau",
-    "GY": "Guyana", "HT": "Haiti", "HM": "Heard Island and Mcdonald Islands", "VA": "Holy See (Vatican City State)", "HN": "Honduras",
-    "HK": "Hong Kong", "HU": "Hungary", "IS": "Iceland", "IN": "India", "ID": "Indonesia",
-    "IR": "Iran, Islamic Republic Of", "IQ": "Iraq", "IE": "Ireland", "IL": "Israel", "IT": "Italy",
-    "JM": "Jamaica", "JP": "Japan", "JO": "Jordan", "KZ": "Kazakhstan", "KE": "Kenya",
-    "KI": "Kiribati", "KP": "Korea, Democratic People's Republic of", "KR": "Korea, Republic of", "KW": "Kuwait", "KG": "Kyrgyzstan",
-    "LA": "Lao People's Democratic Republic", "LV": "Latvia", "LB": "Lebanon", "LS": "Lesotho", "LR": "Liberia",
-    "LY": "Libyan Arab Jamahiriya", "LI": "Liechtenstein", "LT": "Lithuania", "LU": "Luxembourg", "MO": "Macao",
-    "MK": "Macedonia, The Former Yugoslav Republic of", "MG": "Madagascar", "MW": "Malawi", "MY": "Malaysia", "MV": "Maldives",
-    "ML": "Mali", "MT": "Malta", "MH": "Marshall Islands", "MQ": "Martinique", "MR": "Mauritania",
-    "MU": "Mauritius", "YT": "Mayotte", "MX": "Mexico", "FM": "Micronesia, Federated States of", "MD": "Moldova, Republic of",
-    "MC": "Monaco", "MN": "Mongolia", "MS": "Montserrat", "MA": "Morocco", "MZ": "Mozambique",
-    "MM": "Myanmar", "NA": "Namibia", "NR": "Nauru", "NP": "Nepal", "NL": "Netherlands",
-    "AN": "Netherlands Antilles", "NC": "New Caledonia", "NZ": "New Zealand", "NI": "Nicaragua", "NE": "Niger",
-    "NG": "Nigeria", "NU": "Niue", "NF": "Norfolk Island", "MP": "Northern Mariana Islands", "NO": "Norway",
-    "OM": "Oman", "PK": "Pakistan", "PW": "Palau", "PS": "Palestinian Territory, Occupied", "PA": "Panama",
-    "PG": "Papua New Guinea", "PY": "Paraguay", "PE": "Peru", "PH": "Philippines", "PN": "Pitcairn",
-    "PL": "Poland", "PT": "Portugal", "PR": "Puerto Rico", "QA": "Qatar", "RE": "Reunion",
-    "RO": "Romania", "RU": "Russian Federation", "RW": "Rwanda", "SH": "Saint Helena", "KN": "Saint Kitts and Nevis",
-    "LC": "Saint Lucia", "PM": "Saint Pierre and Miquelon", "VC": "Saint Vincent and the Grenadines", "WS": "Samoa", "SM": "San Marino",
-    "ST": "Sao Tome and Principe", "SA": "Saudi Arabia", "SN": "Senegal", "SC": "Seychelles", "SL": "Sierra Leone",
-    "SG": "Singapore", "SK": "Slovakia", "SI": "Slovenia", "SB": "Solomon Islands", "SO": "Somalia",
-    "ZA": "South Africa", "GS": "South Georgia and the South Sandwich Islands", "ES": "Spain", "LK": "Sri Lanka", "SD": "Sudan",
-    "SR": "Suriname", "SJ": "Svalbard and Jan Mayen", "SZ": "Swaziland", "SE": "Sweden", "CH": "Switzerland",
-    "SY": "Syrian Arab Republic", "TW": "Taiwan, Province of China", "TJ": "Tajikistan", "TZ": "Tanzania, United Republic of", "TH": "Thailand",
-    "TL": "Timor-Leste", "TG": "Togo", "TK": "Tokelau", "TO": "Tonga", "TT": "Trinidad and Tobago",
-    "TN": "Tunisia", "TR": "Turkey", "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TV": "Tuvalu",
-    "UG": "Uganda", "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States",
-    "UM": "United States Minor Outlying Islands", "UY": "Uruguay", "UZ": "Uzbekistan", "VU": "Vanuatu", "VE": "Venezuela",
-    "VN": "Viet Nam", "VG": "Virgin Islands, British", "VI": "Virgin Islands, U.S.", "WF": "Wallis and Futuna", "EH": "Western Sahara",
-    "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo"
+    "BO": "Bolivia", "BA": "Bosnia and Herzegovina", "BW": "Botswana", "BR": "Brazil", "IO": "British Indian Ocean Territory",
+    "BN": "Brunei Darussalam", "BG": "Bulgaria", "BF": "Burkina Faso", "BI": "Burundi", "KH": "Cambodia",
+    "CM": "Cameroon", "CA": "Canada", "CV": "Cape Verde", "KY": "Cayman Islands", "CF": "Central African Republic",
+    "TD": "Chad", "CL": "Chile", "CN": "China", "CX": "Christmas Island", "CC": "Cocos (Keeling) Islands",
+    "CO": "Colombia", "KM": "Comoros", "CG": "Congo", "CD": "Congo, The Democratic Republic of the", "CK": "Cook Islands",
+    "CR": "Costa Rica", "CI": "Cote D'Ivoire", "HR": "Croatia", "CU": "Cuba", "CY": "Cyprus",
+    "CZ": "Czech Republic", "DK": "Denmark", "DJ": "Djibouti", "DM": "Dominica", "DO": "Dominican Republic",
+    "EC": "Ecuador", "EG": "Egypt", "SV": "El Salvador", "GQ": "Equatorial Guinea", "ER": "Eritrea",
+    "EE": "Estonia", "ET": "Ethiopia", "FK": "Falkland Islands (Malvinas)", "FO": "Faroe Islands", "FJ": "Fiji",
+    "FI": "Finland", "FR": "France", "GF": "French Guiana", "PF": "French Polynesia", "TF": "French Southern Territories",
+    "GA": "Gabon", "GM": "Gambia", "GE": "Georgia", "DE": "Germany", "GH": "Ghana",
+    "GI": "Gibraltar", "GR": "Greece", "GL": "Greenland", "GD": "Grenada", "GP": "Guadeloupe",
+    "GU": "Guam", "GT": "Guatemala", "GN": "Guinea", "GW": "Guinea-Bissau", "GY": "Guyana",
+    "HT": "Haiti", "HM": "Heard Island and Mcdonald Islands", "VA": "Holy See (Vatican City State)", "HN": "Honduras", "HK": "Hong Kong",
+    "HU": "Hungary", "IS": "Iceland", "IN": "India", "ID": "Indonesia", "IR": "Iran, Islamic Republic Of",
+    "IQ": "Iraq", "IE": "Ireland", "IL": "Israel", "IT": "Italy", "JM": "Jamaica",
+    "JP": "Japan", "JO": "Jordan", "KZ": "Kazakhstan", "KE": "Kenya", "KI": "Kiribati",
+    "KP": "Korea, Democratic People's Republic of", "KR": "Korea, Republic of", "KW": "Kuwait", "KG": "Kyrgyzstan", "LA": "Lao People's Democratic Republic",
+    "LV": "Latvia", "LB": "Lebanon", "LS": "Lesotho", "LR": "Liberia", "LY": "Libyan Arab Jamahiriya",
+    "LI": "Liechtenstein", "LT": "Lithuania", "LU": "Luxembourg", "MO": "Macao", "MK": "Macedonia, The Former Yugoslav Republic of",
+    "MG": "Madagascar", "MW": "Malawi", "MY": "Malaysia", "MV": "Maldives", "ML": "Mali",
+    "MT": "Malta", "MH": "Marshall Islands", "MQ": "Martinique", "MR": "Mauritania", "MU": "Mauritius",
+    "YT": "Mayotte", "MX": "Mexico", "FM": "Micronesia, Federated States of", "MD": "Moldova, Republic of", "MC": "Monaco",
+    "MN": "Mongolia", "MS": "Montserrat", "MA": "Morocco", "MZ": "Mozambique", "MM": "Myanmar",
+    "NA": "Namibia", "NR": "Nauru", "NP": "Nepal", "NL": "Netherlands", "AN": "Netherlands Antilles",
+    "NC": "New Caledonia", "NZ": "New Zealand", "NI": "Nicaragua", "NE": "Niger", "NG": "Nigeria",
+    "NU": "Niue", "NF": "Norfolk Island", "MP": "Northern Mariana Islands", "NO": "Norway", "OM": "Oman",
+    "PK": "Pakistan", "PW": "Palau", "PS": "Palestinian Territory, Occupied", "PA": "Panama", "PG": "Papua New Guinea",
+    "PY": "Paraguay", "PE": "Peru", "PH": "Philippines", "PN": "Pitcairn", "PL": "Poland",
+    "PT": "Portugal", "PR": "Puerto Rico", "QA": "Qatar", "RE": "Reunion", "RO": "Romania",
+    "RU": "Russian Federation", "RW": "Rwanda", "SH": "Saint Helena", "KN": "Saint Kitts and Nevis", "LC": "Saint Lucia",
+    "PM": "Saint Pierre and Miquelon", "VC": "Saint Vincent and the Grenadines", "WS": "Samoa", "SM": "San Marino", "ST": "Sao Tome and Principe",
+    "SA": "Saudi Arabia", "SN": "Senegal", "SC": "Seychelles", "SL": "Sierra Leone", "SG": "Singapore",
+    "SK": "Slovakia", "SI": "Slovenia", "SB": "Solomon Islands", "SO": "Somalia", "ZA": "South Africa",
+    "GS": "South Georgia and the South Sandwich Islands", "ES": "Spain", "LK": "Sri Lanka", "SD": "Sudan", "SR": "Suriname",
+    "SJ": "Svalbard and Jan Mayen", "SZ": "Swaziland", "SE": "Sweden", "CH": "Switzerland", "SY": "Syrian Arab Republic",
+    "TW": "Taiwan, Province of China", "TJ": "Tajikistan", "TZ": "Tanzania, United Republic of", "TH": "Thailand", "TL": "Timor-Leste",
+    "TG": "Togo", "TK": "Tokelau", "TO": "Tonga", "TT": "Trinidad and Tobago", "TN": "Tunisia",
+    "TR": "Turkey", "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TV": "Tuvalu", "UG": "Uganda",
+    "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States", "UM": "United States Minor Outlying Islands",
+    "UY": "Uruguay", "UZ": "Uzbekistan", "VU": "Vanuatu", "VE": "Venezuela", "VN": "Viet Nam",
+    "VG": "Virgin Islands, British", "VI": "Virgin Islands, U.S.", "WF": "Wallis and Futuna", "EH": "Western Sahara", "YE": "Yemen",
+    "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo" # Kosovo is often included, though not universally recognized ISO 3166
 }
+
 
 def get_full_country_name(country_code):
     """Maps a two-letter country code to a full country name."""
     return COUNTRY_CODE_TO_NAME.get(country_code, country_code)
+
 
 async def check_virustotal(session, ip, api_key):
     """Check IP against VirusTotal API"""
@@ -640,7 +635,7 @@ async def check_virustotal(session, ip, api_key):
         return {'malicious': -1, 'suspicious': -1}
 
 async def check_abuseipdb(session, ip, api_key):
-    """Check IP against AbuseIPDB API."""
+    """Check IP against AbuseIPDB API"""
     try:
         url = "https://api.abuseipdb.com/api/v2/check"
         headers = {"Key": api_key, "Accept": "application/json"}
@@ -651,16 +646,16 @@ async def check_abuseipdb(session, ip, api_key):
                 data = await response.json()
                 if 'data' in data:
                     return {
-                        'abuseConfidence': data['data'].get('abuseConfidenceScore', 0),
+                        'abuseConfidence': data['data'].get('abuseConfidencePercentage', 0),
                         'isp': data['data'].get('isp', 'Unknown'),
-                        'countryCode': data['data'].get('countryCode', 'Unknown')
+                        'countryCode': data['data'].get('countryCode', 'Unknown') # Changed to countryCode
                     }
             else:
                 print(f"AIPDB API Error for {ip}: {response.status}")
-                return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'}
+                return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'} # Changed to countryCode
     except Exception as e:
         print(f"AIPDB Exception for {ip}: {str(e)}")
-        return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'}
+        return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'} # Changed to countryCode
 
 def is_valid_ip(ip):
     """Validate IP address"""
@@ -678,7 +673,7 @@ def is_private_ip(ip):
     except ValueError:
         return True
 
-def get_risk_level(vt_malicious, abuse_confidence_score):
+def get_risk_level(vt_malicious, abuse_confidence_score): # Renamed parameter for clarity
     """Determine risk level based on scores"""
     if vt_malicious == -1 and abuse_confidence_score == -1:
         return 'unknown'
@@ -695,20 +690,11 @@ def index():
     """Serve the main HTML page"""
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/favicon.ico')
-def favicon():
-    """Serve favicon from a static directory.
-    Note: For Codespaces, you might need to create a 'static' folder
-    in your repository root and place favicon.ico inside it."""
-    # This assumes a 'static' folder exists at the same level as your app.py
-    return send_from_directory('static', 'favicon.ico')
-
 @app.route('/analyze', methods=['POST'])
 def analyze_ips():
     """Analyze IP addresses using both APIs"""
     try:
         data = request.get_json()
-        print("Received data:", data) # Added print for debugging
         ips = data.get('ips', [])
         vt_api = data.get('vt_api', '')
         aipdb_api = data.get('aipdb_api', '')
@@ -719,25 +705,25 @@ def analyze_ips():
         if not vt_api or not aipdb_api:
             return jsonify({'error': 'Both API keys are required'}), 400
         
+        # Filter valid public IPs
         valid_ips = []
         for ip in ips:
             if not is_valid_ip(ip):
-                print(f"Skipping invalid IP: {ip}") # Added print for debugging
                 continue
             if is_private_ip(ip):
-                print(f"Skipping private IP: {ip}") # Added print for debugging
                 continue
             valid_ips.append(ip)
         
         if not valid_ips:
             return jsonify({'error': 'No valid public IP addresses found'}), 400
         
+        # Run async analysis
         results = asyncio.run(analyze_ips_async(valid_ips, vt_api, aipdb_api))
         
         return jsonify({'results': results})
         
     except Exception as e:
-        print(f"Error in analyze_ips: {str(e)}") # Added print for debugging
+        print(f"Error in analyze_ips: {str(e)}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 async def analyze_ips_async(ips, vt_api, aipdb_api):
@@ -747,13 +733,15 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
     timeout = aiohttp.ClientTimeout(total=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         for ip in ips:
-            print(f"Analyzing {ip}...") # Added print for debugging
+            print(f"Analyzing {ip}...")
             
+            # Get results from both APIs
             vt_result, aipdb_result = await asyncio.gather(
                 check_virustotal(session, ip, vt_api),
                 check_abuseipdb(session, ip, aipdb_api)
             )
             
+            # Determine risk level
             risk_level = get_risk_level(
                 vt_result['malicious'], 
                 aipdb_result['abuseConfidence']
@@ -765,7 +753,7 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
                 'vtSuspicious': vt_result.get('suspicious', 0),
                 'abuseScore': aipdb_result['abuseConfidence'],
                 'isp': aipdb_result['isp'],
-                'country': aipdb_result['countryCode'], # Ensure this uses countryCode from AIPDB result
+                'country': aipdb_result['countryCode'], # Storing countryCode here
                 'riskLevel': risk_level
             })
             
