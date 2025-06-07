@@ -421,23 +421,37 @@ HTML_TEMPLATE = '''
         }
 
         async function analyzeIPs() {
+            // Added console.log for debugging
+            console.log("Analyze IPs button clicked!");
+
             const ipListText = document.getElementById('ipList').value.trim();
             const vtApi = document.getElementById('vtApi').value.trim();
             const aipdbApi = document.getElementById('aipdbApi').value.trim();
 
+            // Added console.log for debugging
+            console.log("IPs raw text:", ipListText);
+            console.log("VT API Key (first 5 chars):", vtApi.substring(0, 5));
+            console.log("AIPDB API Key (first 5 chars):", aipdbApi.substring(0, 5));
+
+
             if (!ipListText) {
                 showMessage('Please enter IP addresses to analyze');
+                console.error("Error: No IP addresses provided."); // Added console.error
                 return;
             }
 
             if (!vtApi || !aipdbApi) {
                 showMessage('Please enter both API keys');
+                console.error("Error: Both API keys are required."); // Added console.error
                 return;
             }
 
-            const ips = ipListText.split('\n') // Corrected: changed '\\n' to '\n'
+            // Corrected: changed '\n' back to '\\n' for JavaScript string literal in Python template
+            const ips = ipListText.split('\\n') 
                 .map(ip => ip.trim())
                 .filter(ip => ip.length > 0);
+
+            console.log("Parsed IPs:", ips); // Added console.log
 
             // Show loading
             document.querySelector('.loading').style.display = 'block';
@@ -458,7 +472,8 @@ HTML_TEMPLATE = '''
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
+                    const errorBody = await response.text(); // Get raw error body
+                    throw new Error(`Server error: ${response.status} - ${errorBody}`); // Include error body
                 }
 
                 const data = await response.json();
@@ -471,7 +486,7 @@ HTML_TEMPLATE = '''
                 displayResults();
                 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error during analysis:', error); // More specific error log
                 showMessage(`Error: ${error.message}`);
             }
 
