@@ -280,9 +280,7 @@ HTML_TEMPLATE = '''
         <div class="input-section">
             <div class="form-group">
                 <label for="ipList">IP Addresses (one per line)</label>
-                <textarea id="ipList" placeholder="192.168.1.1
-10.0.0.1
-8.8.8.8">8.8.8.8
+                <textarea id="ipList" placeholder="192.168.1.1\n10.0.0.1\n8.8.8.8">8.8.8.8
 1.1.1.1
 208.67.222.222
 91.196.152.50</textarea>
@@ -384,11 +382,11 @@ HTML_TEMPLATE = '''
             "SR": "Suriname", "SJ": "Svalbard and Jan Mayen", "SZ": "Swaziland", "SE": "Sweden", "CH": "Switzerland",
             "SY": "Syrian Arab Republic", "TW": "Taiwan, Province of China", "TJ": "Tajikistan", "TZ": "Tanzania, United Republic of", "TH": "Thailand",
             "TL": "Timor-Leste", "TG": "Togo", "TK": "Tokelau", "TO": "Tonga", "TT": "Trinidad and Tobago",
-            "TN": "Tunisia", "TR": "Turkey", "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TVHoward": "Tuvalu",
+            "TN": "Tunisia", "TR": "Turkey", "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TV": "Tuvalu",
             "UG": "Uganda", "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States",
             "UM": "United States Minor Outlying Islands", "UY": "Uruguay", "UZ": "Uzbekistan", "VU": "Vanuatu", "VE": "Venezuela",
             "VN": "Viet Nam", "VG": "Virgin Islands, British", "VI": "Virgin Islands, U.S.", "WF": "Wallis and Futuna", "EH": "Western Sahara",
-            "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo"
+            "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo" # Kosovo is often included, though not universally recognized ISO 3166
         };
 
         function showMessage(message, type = 'error') {
@@ -442,14 +440,16 @@ HTML_TEMPLATE = '''
                 return;
             }
 
-            const ips = ipListText.split('\n').map(ip => ip.trim()).filter(ip => ip.length > 0);
+            // Corrected: Uses '\n' for splitting text area content
+            const ips = ipListText.split('\n') 
+                .map(ip => ip.trim())
+                .filter(ip => ip.length > 0);
+
             console.log("Parsed IPs:", ips);
 
             document.querySelector('.loading').style.display = 'block';
             document.querySelector('.results-section').style.display = 'none';
             document.querySelector('#progressText').textContent = 'Sending request to server...';
-
- 
 
             try {
                 const response = await fetch('/analyze', {
@@ -565,7 +565,7 @@ HTML_TEMPLATE = '''
 # Simple country code to full name mapping
 COUNTRY_CODE_TO_NAME = {
     "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AS": "American Samoa", "AD": "Andorra",
-    "AO": "Angola", "AI": "Anguilla", "AQ": "Antarctica", Ang": "Antigua and Barbuda", "AR": "Argentina",
+    "AO": "Angola", "AI": "Anguilla", "AQ": "Antarctica", "AG": "Antigua and Barbuda", "AR": "Argentina",
     "AM": "Armenia", "AW": "Aruba", "AU": "Australia", "AT": "Austria", "AZ": "Azerbaijan",
     "BS": "Bahamas", "BH": "Bahrain", "BD": "Bangladesh", "BB": "Barbados", "BY": "Belarus",
     "BE": "Belgium", "BZ": "Belize", "BJ": "Benin", "BM": "Bermuda", "BT": "Bhutan",
@@ -697,7 +697,10 @@ def index():
 
 @app.route('/favicon.ico')
 def favicon():
-    """Serve favicon"""
+    """Serve favicon from a static directory.
+    Note: For Codespaces, you might need to create a 'static' folder
+    in your repository root and place favicon.ico inside it."""
+    # This assumes a 'static' folder exists at the same level as your app.py
     return send_from_directory('static', 'favicon.ico')
 
 @app.route('/analyze', methods=['POST'])
@@ -705,7 +708,7 @@ def analyze_ips():
     """Analyze IP addresses using both APIs"""
     try:
         data = request.get_json()
-        print("Received data:", data)
+        print("Received data:", data) # Added print for debugging
         ips = data.get('ips', [])
         vt_api = data.get('vt_api', '')
         aipdb_api = data.get('aipdb_api', '')
@@ -719,8 +722,10 @@ def analyze_ips():
         valid_ips = []
         for ip in ips:
             if not is_valid_ip(ip):
+                print(f"Skipping invalid IP: {ip}") # Added print for debugging
                 continue
             if is_private_ip(ip):
+                print(f"Skipping private IP: {ip}") # Added print for debugging
                 continue
             valid_ips.append(ip)
         
@@ -732,7 +737,7 @@ def analyze_ips():
         return jsonify({'results': results})
         
     except Exception as e:
-        print(f"Error in analyze_ips: {str(e)}")
+        print(f"Error in analyze_ips: {str(e)}") # Added print for debugging
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 async def analyze_ips_async(ips, vt_api, aipdb_api):
@@ -742,7 +747,7 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
     timeout = aiohttp.ClientTimeout(total=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         for ip in ips:
-            print(f"Analyzing {ip}...")
+            print(f"Analyzing {ip}...") # Added print for debugging
             
             vt_result, aipdb_result = await asyncio.gather(
                 check_virustotal(session, ip, vt_api),
@@ -750,7 +755,7 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
             )
             
             risk_level = get_risk_level(
-                vt_result['malicious'],
+                vt_result['malicious'], 
                 aipdb_result['abuseConfidence']
             )
             
@@ -760,12 +765,14 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
                 'vtSuspicious': vt_result.get('suspicious', 0),
                 'abuseScore': aipdb_result['abuseConfidence'],
                 'isp': aipdb_result['isp'],
-                'country': aipdb_result['countryCode'],
+                'country': aipdb_result['countryCode'], # Ensure this uses countryCode from AIPDB result
                 'riskLevel': risk_level
             })
             
+            # Small delay to avoid rate limiting
             await asyncio.sleep(0.2)
     
+    # Sort by risk level
     risk_order = {'high': 4, 'medium': 3, 'low': 2, 'clean': 1, 'unknown': 0}
     results.sort(key=lambda x: risk_order.get(x['riskLevel'], 0), reverse=True)
     
