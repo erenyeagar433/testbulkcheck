@@ -435,7 +435,7 @@ HTML_TEMPLATE = '''
                 return;
             }
 
-            const ips = ipListText.split('\\n')
+            const ips = ipListText.split('\n') // Corrected: changed '\\n' to '\n'
                 .map(ip => ip.trim())
                 .filter(ip => ip.length > 0);
 
