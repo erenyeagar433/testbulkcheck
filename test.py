@@ -1,22 +1,22 @@
 from flask import Flask, request, jsonify, render_template_string, send_file
-     from flask_cors import CORS
-     import asyncio
-     import aiohttp
-     import ipaddress
-     import json
-     import time
-     import pandas as pd
-     from dotenv import load_dotenv
-     import os
-     import io
+from flask_cors import CORS
+import asyncio
+import aiohttp
+import ipaddress
+import json
+import time
+import pandas as pd
+from dotenv import load_dotenv
+import os
+import io
 
-     app = Flask(__name__)
-     CORS(app)  # Enable CORS for all routes
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-     # Load API keys from .env
-     load_dotenv()
-     VT_API_KEY = os.getenv("VT_API_KEY")
-     AIPDB_API_KEY = os.getenv("AIPDB_API_KEY")
+# Load API keys from .env
+load_dotenv()
+VT_API_KEY = os.getenv("VT_API_KEY")
+AIPDB_API_KEY = os.getenv("AIPDB_API_KEY")
 
      # HTML template
      HTML_TEMPLATE = '''
