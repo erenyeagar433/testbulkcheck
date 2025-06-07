@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
 from flask_cors import CORS
 import asyncio
 import aiohttp
@@ -17,6 +17,7 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IP Reputation Lookup Tool</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -209,7 +210,7 @@ HTML_TEMPLATE = '''
             color: white;
         }
 
-        .risk-clean { /* Added clean for clarity */
+        .risk-clean {
             background: linear-gradient(45deg, #28a745, #27ae60) !important;
             color: white;
         }
@@ -279,7 +280,9 @@ HTML_TEMPLATE = '''
         <div class="input-section">
             <div class="form-group">
                 <label for="ipList">IP Addresses (one per line)</label>
-                <textarea id="ipList" placeholder="192.168.1.1&#10;10.0.0.1&#10;8.8.8.8">8.8.8.8
+                <textarea id="ipList" placeholder="192.168.1.1
+10.0.0.1
+8.8.8.8">8.8.8.8
 1.1.1.1
 208.67.222.222
 91.196.152.50</textarea>
@@ -297,9 +300,7 @@ HTML_TEMPLATE = '''
             </div>
 
             <div style="text-align: center; margin-top: 20px;">
-                <button class="btn" onclick="analyzeIPs()">
-                    🔍 Analyze IPs
-                </button>
+                <button class="btn" onclick="analyzeIPs()">🔍 Analyze IPs</button>
             </div>
         </div>
 
@@ -383,13 +384,12 @@ HTML_TEMPLATE = '''
             "SR": "Suriname", "SJ": "Svalbard and Jan Mayen", "SZ": "Swaziland", "SE": "Sweden", "CH": "Switzerland",
             "SY": "Syrian Arab Republic", "TW": "Taiwan, Province of China", "TJ": "Tajikistan", "TZ": "Tanzania, United Republic of", "TH": "Thailand",
             "TL": "Timor-Leste", "TG": "Togo", "TK": "Tokelau", "TO": "Tonga", "TT": "Trinidad and Tobago",
-            "TN": "Tunisia", "TR": "Turkey", "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TV": "Tuvalu",
+            "TN": "Tunisia", "TR": "Turkey", "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TVHoward": "Tuvalu",
             "UG": "Uganda", "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States",
             "UM": "United States Minor Outlying Islands", "UY": "Uruguay", "UZ": "Uzbekistan", "VU": "Vanuatu", "VE": "Venezuela",
             "VN": "Viet Nam", "VG": "Virgin Islands, British", "VI": "Virgin Islands, U.S.", "WF": "Wallis and Futuna", "EH": "Western Sahara",
-            "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo" # Kosovo is often included, though not universally recognized ISO 3166
+            "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo"
         };
-
 
         function showMessage(message, type = 'error') {
             const existingMsg = document.querySelector('.error-message, .success-message');
@@ -421,43 +421,36 @@ HTML_TEMPLATE = '''
         }
 
         async function analyzeIPs() {
-            // Added console.log for debugging
             console.log("Analyze IPs button clicked!");
-
             const ipListText = document.getElementById('ipList').value.trim();
             const vtApi = document.getElementById('vtApi').value.trim();
             const aipdbApi = document.getElementById('aipdbApi').value.trim();
 
-            // Added console.log for debugging
             console.log("IPs raw text:", ipListText);
             console.log("VT API Key (first 5 chars):", vtApi.substring(0, 5));
             console.log("AIPDB API Key (first 5 chars):", aipdbApi.substring(0, 5));
 
-
             if (!ipListText) {
                 showMessage('Please enter IP addresses to analyze');
-                console.error("Error: No IP addresses provided."); // Added console.error
+                console.error("Error: No IP addresses provided.");
                 return;
             }
 
             if (!vtApi || !aipdbApi) {
                 showMessage('Please enter both API keys');
-                console.error("Error: Both API keys are required."); // Added console.error
+                console.error("Error: Both API keys are required.");
                 return;
             }
 
-            // Corrected: changed '\n' back to '\\n' for JavaScript string literal in Python template
-            const ips = ipListText.split('\\n') 
-                .map(ip => ip.trim())
-                .filter(ip => ip.length > 0);
+            const ips = ipListText.split('\n').map(ip => ip.trim()).filter(ip => ip.length > 0);
+            console.log("Parsed IPs:", ips);
 
-            console.log("Parsed IPs:", ips); // Added console.log
-
-            // Show loading
             document.querySelector('.loading').style.display = 'block';
             document.querySelector('.results-section').style.display = 'none';
-            document.getElementById('progressText').textContent = 'Sending request to server...';
-            
+            document.querySelector('#progressText').textContent = 'Sending request to server...';
+
+ 
+
             try {
                 const response = await fetch('/analyze', {
                     method: 'POST',
@@ -472,12 +465,12 @@ HTML_TEMPLATE = '''
                 });
 
                 if (!response.ok) {
-                    const errorBody = await response.text(); // Get raw error body
-                    throw new Error(`Server error: ${response.status} - ${errorBody}`); // Include error body
+                    const errorBody = await response.text();
+                    throw new Error(`Server error: ${response.status} - ${errorBody}`);
                 }
 
                 const data = await response.json();
-                
+                console.log("Server response:", data);
                 if (data.error) {
                     throw new Error(data.error);
                 }
@@ -486,11 +479,10 @@ HTML_TEMPLATE = '''
                 displayResults();
                 
             } catch (error) {
-                console.error('Error during analysis:', error); // More specific error log
+                console.error('Error during analysis:', error);
                 showMessage(`Error: ${error.message}`);
             }
 
-            // Hide loading
             document.querySelector('.loading').style.display = 'none';
         }
 
@@ -505,9 +497,9 @@ HTML_TEMPLATE = '''
                 row.innerHTML = `
                     <td>${result.ip}</td>
                     <td>${result.vtMalicious === -1 ? 'Error' : result.vtMalicious}</td>
-                    <td>${result.abuseScore === -1 ? 'Error' : result.abuseScore}%</td> <!-- Now correctly uses abuseScore -->
+                    <td>${result.abuseScore === -1 ? 'Error' : result.abuseScore}%</td>
                     <td>${result.isp}</td>
-                    <td>${getFullCountryName(result.country)}</td> <!-- Updated to use full country name -->
+                    <td>${getFullCountryName(result.country)}</td>
                     <td>${getRiskText(result.riskLevel)}</td>
                 `;
                 
@@ -532,10 +524,10 @@ HTML_TEMPLATE = '''
                     row.vtMalicious,
                     row.abuseScore,
                     `"${row.isp}"`,
-                    `"${getFullCountryName(row.country)}"`, # Updated for full country name
+                    `"${getFullCountryName(row.country)}"`,
                     getRiskText(row.riskLevel)
                 ].join(','))
-            ].join('\\n');
+            ].join('\n');
 
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
@@ -557,7 +549,7 @@ HTML_TEMPLATE = '''
                 'VT Malicious': row.vtMalicious,
                 'AbuseIPDB Score': row.abuseScore,
                 'ISP': row.isp,
-                'Country': getFullCountryName(row.country), # Updated for full country name
+                'Country': getFullCountryName(row.country),
                 'Risk Level': getRiskText(row.riskLevel)
             })));
 
@@ -571,10 +563,9 @@ HTML_TEMPLATE = '''
 '''
 
 # Simple country code to full name mapping
-# This can be expanded or loaded from a more comprehensive source if needed
 COUNTRY_CODE_TO_NAME = {
     "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AS": "American Samoa", "AD": "Andorra",
-    "AO": "Angola", "AI": "Anguilla", "AQ": "Antarctica", "AG": "Antigua and Barbuda", "AR": "Argentina",
+    "AO": "Angola", "AI": "Anguilla", "AQ": "Antarctica", Ang": "Antigua and Barbuda", "AR": "Argentina",
     "AM": "Armenia", "AW": "Aruba", "AU": "Australia", "AT": "Austria", "AZ": "Azerbaijan",
     "BS": "Bahamas", "BH": "Bahrain", "BD": "Bangladesh", "BB": "Barbados", "BY": "Belarus",
     "BE": "Belgium", "BZ": "Belize", "BJ": "Benin", "BM": "Bermuda", "BT": "Bhutan",
@@ -620,14 +611,12 @@ COUNTRY_CODE_TO_NAME = {
     "UG": "Uganda", "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States",
     "UM": "United States Minor Outlying Islands", "UY": "Uruguay", "UZ": "Uzbekistan", "VU": "Vanuatu", "VE": "Venezuela",
     "VN": "Viet Nam", "VG": "Virgin Islands, British", "VI": "Virgin Islands, U.S.", "WF": "Wallis and Futuna", "EH": "Western Sahara",
-    "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo" # Kosovo is often included, though not universally recognized ISO 3166
+    "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe", "XK": "Kosovo"
 }
-
 
 def get_full_country_name(country_code):
     """Maps a two-letter country code to a full country name."""
     return COUNTRY_CODE_TO_NAME.get(country_code, country_code)
-
 
 async def check_virustotal(session, ip, api_key):
     """Check IP against VirusTotal API"""
@@ -651,10 +640,7 @@ async def check_virustotal(session, ip, api_key):
         return {'malicious': -1, 'suspicious': -1}
 
 async def check_abuseipdb(session, ip, api_key):
-    """
-    Check IP against AbuseIPDB API.
-    Correctly extracts 'abuseConfidenceScore' and 'countryCode'.
-    """
+    """Check IP against AbuseIPDB API."""
     try:
         url = "https://api.abuseipdb.com/api/v2/check"
         headers = {"Key": api_key, "Accept": "application/json"}
@@ -665,17 +651,16 @@ async def check_abuseipdb(session, ip, api_key):
                 data = await response.json()
                 if 'data' in data:
                     return {
-                        # Corrected key from 'abuseConfidencePercentage' to 'abuseConfidenceScore'
-                        'abuseConfidence': data['data'].get('abuseConfidenceScore', 0), 
+                        'abuseConfidence': data['data'].get('abuseConfidenceScore', 0),
                         'isp': data['data'].get('isp', 'Unknown'),
-                        'countryCode': data['data'].get('countryCode', 'Unknown') 
+                        'countryCode': data['data'].get('countryCode', 'Unknown')
                     }
             else:
                 print(f"AIPDB API Error for {ip}: {response.status}")
-                return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'} 
+                return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'}
     except Exception as e:
         print(f"AIPDB Exception for {ip}: {str(e)}")
-        return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'} 
+        return {'abuseConfidence': -1, 'isp': 'Unknown', 'countryCode': 'Unknown'}
 
 def is_valid_ip(ip):
     """Validate IP address"""
@@ -693,7 +678,7 @@ def is_private_ip(ip):
     except ValueError:
         return True
 
-def get_risk_level(vt_malicious, abuse_confidence_score): 
+def get_risk_level(vt_malicious, abuse_confidence_score):
     """Determine risk level based on scores"""
     if vt_malicious == -1 and abuse_confidence_score == -1:
         return 'unknown'
@@ -710,11 +695,17 @@ def index():
     """Serve the main HTML page"""
     return render_template_string(HTML_TEMPLATE)
 
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon"""
+    return send_from_directory('static', 'favicon.ico')
+
 @app.route('/analyze', methods=['POST'])
 def analyze_ips():
     """Analyze IP addresses using both APIs"""
     try:
         data = request.get_json()
+        print("Received data:", data)
         ips = data.get('ips', [])
         vt_api = data.get('vt_api', '')
         aipdb_api = data.get('aipdb_api', '')
@@ -725,7 +716,6 @@ def analyze_ips():
         if not vt_api or not aipdb_api:
             return jsonify({'error': 'Both API keys are required'}), 400
         
-        # Filter valid public IPs
         valid_ips = []
         for ip in ips:
             if not is_valid_ip(ip):
@@ -737,7 +727,6 @@ def analyze_ips():
         if not valid_ips:
             return jsonify({'error': 'No valid public IP addresses found'}), 400
         
-        # Run async analysis
         results = asyncio.run(analyze_ips_async(valid_ips, vt_api, aipdb_api))
         
         return jsonify({'results': results})
@@ -755,32 +744,28 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
         for ip in ips:
             print(f"Analyzing {ip}...")
             
-            # Get results from both APIs
             vt_result, aipdb_result = await asyncio.gather(
                 check_virustotal(session, ip, vt_api),
                 check_abuseipdb(session, ip, aipdb_api)
             )
             
-            # Determine risk level
             risk_level = get_risk_level(
-                vt_result['malicious'], 
-                aipdb_result['abuseConfidence'] 
+                vt_result['malicious'],
+                aipdb_result['abuseConfidence']
             )
             
             results.append({
                 'ip': ip,
                 'vtMalicious': vt_result['malicious'],
                 'vtSuspicious': vt_result.get('suspicious', 0),
-                'abuseScore': aipdb_result['abuseConfidence'], 
+                'abuseScore': aipdb_result['abuseConfidence'],
                 'isp': aipdb_result['isp'],
-                'country': aipdb_result['countryCode'], # Storing countryCode here
+                'country': aipdb_result['countryCode'],
                 'riskLevel': risk_level
             })
             
-            # Small delay to avoid rate limiting
             await asyncio.sleep(0.2)
     
-    # Sort by risk level
     risk_order = {'high': 4, 'medium': 3, 'low': 2, 'clean': 1, 'unknown': 0}
     results.sort(key=lambda x: risk_order.get(x['riskLevel'], 0), reverse=True)
     
@@ -790,4 +775,3 @@ if __name__ == '__main__':
     print("Starting IP Reputation Lookup Server...")
     print("Open your browser and go to: http://localhost:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)
-
