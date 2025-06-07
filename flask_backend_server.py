@@ -646,7 +646,7 @@ async def check_abuseipdb(session, ip, api_key):
                 data = await response.json()
                 if 'data' in data:
                     return {
-                        'abuseConfidence': data['data'].get('abuseConfidencePercentage', 0),
+                        'abuseConfidence': data['data'].get('abuseConfidenceScore', 0),
                         'isp': data['data'].get('isp', 'Unknown'),
                         'countryCode': data['data'].get('countryCode', 'Unknown') # Changed to countryCode
                     }
