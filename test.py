@@ -746,10 +746,13 @@ async def analyze_ips_async(ips, vt_api, aipdb_api):
                 vt_result['malicious'], 
                 aipdb_result['abuseConfidence']
             )
+
+            # Format vtMalicious as stirng with /94 as suffix
+            vt_malicious_str = f"{vt_result['malicious']}/94" if vt_result['malicious'] != -1 else "-1"
             
             results.append({
                 'ip': ip,
-                'vtMalicious': vt_result['malicious'],
+                'vtMalicious': vt_malicious_str,
                 'vtSuspicious': vt_result.get('suspicious', 0),
                 'abuseScore': aipdb_result['abuseConfidence'],
                 'isp': aipdb_result['isp'],
